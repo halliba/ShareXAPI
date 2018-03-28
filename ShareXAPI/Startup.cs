@@ -1,13 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using ShareXAPI.Options;
 
 namespace ShareXAPI
 {
@@ -24,17 +27,24 @@ namespace ShareXAPI
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc();
+            services.Configure<ApiOptions>(Configuration.GetSection("Api"));
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public void Configure(IApplicationBuilder app, IHostingEnvironment env, IOptions<ApiOptions> apiOptions)
         {
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
             }
 
-            app.UseMvc();
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                FileProvider = new PhysicalFileProvider(apiOptions.Value.LocalImageBasePath),
+                RequestPath = apiOptions.Value.WebImageBasePath
+            });
+            
+            app.UseMvcWithDefaultRoute();
         }
     }
 }
