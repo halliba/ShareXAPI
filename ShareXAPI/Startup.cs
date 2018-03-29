@@ -38,11 +38,22 @@ namespace ShareXAPI
                 app.UseDeveloperExceptionPage();
             }
 
-            app.UseStaticFiles(new StaticFileOptions
+            try
             {
-                FileProvider = new PhysicalFileProvider(apiOptions.Value.LocalImageBasePath),
-                RequestPath = apiOptions.Value.WebImageBasePath
-            });
+                foreach (var apiOption in apiOptions.Value.Uploader)
+                {
+                    app.UseStaticFiles(new StaticFileOptions
+                    {
+                        FileProvider = new PhysicalFileProvider(apiOption.LocalBasePath),
+                        RequestPath = "/" + apiOption.WebBasePath
+                    });
+                    Directory.CreateDirectory(apiOption.LocalBasePath);
+                }
+            }
+            catch (Exception e)
+            {
+                throw new InvalidDataException("Invalid configuration");
+            }
             
             app.UseMvcWithDefaultRoute();
         }

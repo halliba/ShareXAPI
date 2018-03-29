@@ -12,6 +12,7 @@ using ShareXAPI.Options;
 
 namespace ShareXAPI.Controllers
 {
+    
     public class ImageController : Controller
     {
         private readonly ApiOptions _options;
@@ -21,31 +22,61 @@ namespace ShareXAPI.Controllers
             _options = options.Value;
         }
 
-        [HttpPost]
-        public IActionResult PostImage(IFormFile file)
+        [HttpPost("/{someName}")]
+        public IActionResult Post([FromRoute]string someName, [FromForm]Model model)
         {
+            var file = model.File;
+            var apiKey = model.ApiKey;
             if (file == null)
             {
                 return BadRequest("No file given");
             }
-            var fileExtension = Path.GetExtension(file.FileName);
-
-            if (!_options.FileExtensions.Contains(fileExtension) || file.Length > (1024 * 1024) * _options.MaxImageSize)
+            var uploader =
+                _options.Uploader.FirstOrDefault(
+                    s => s.WebBasePath.Equals(someName, StringComparison.OrdinalIgnoreCase));
+            if (uploader == null)
             {
-                return BadRequest(
-                    $"File does not meet the Requirements. Maximum size {_options.MaxImageSize}MB, Allowed Extensions [{string.Join(", ", _options.FileExtensions)}]");
+                return NotFound();
+            }
+            if (uploader.ApiKey != apiKey && !string.IsNullOrEmpty(uploader.ApiKey))
+            {
+                return new UnauthorizedResult();
             }
 
-            var fileName = Path.ChangeExtension(Guid.NewGuid().ToString("D"), fileExtension);
-            var filePath = Path.Combine(_options.LocalImageBasePath, fileName);
-            Directory.CreateDirectory(_options.LocalImageBasePath);
+            var fileExtension = Path.GetExtension(file.FileName).ToLower();
+
+            if (!uploader.FileExtensions.Contains(fileExtension) && !uploader.FileExtensions.Contains("*") || file.Length > (1024 * 1024) * uploader.MaxFileSize)
+            {
+                return BadRequest(
+                    $"File does not meet the Requirements. Maximum size {uploader.MaxFileSize}MB, Allowed Extensions [{string.Join(", ", uploader.FileExtensions)}]");
+            }
+
+            Directory.CreateDirectory(uploader.LocalBasePath);
+
+            var fileName = GetRandomFileName(fileExtension);
+            var filePath = Path.Combine(uploader.LocalBasePath, fileName);
+            while (System.IO.File.Exists(filePath))
+            {
+                fileName = GetRandomFileName(fileExtension);
+                filePath = Path.Combine(uploader.LocalBasePath, fileName);
+            }
 
             using (var fs = System.IO.File.Create(filePath))
             {
                 file.CopyTo(fs);
             }
 
-            return LocalRedirect($"{_options.WebImageBasePath}/{fileName}");
+            return LocalRedirect($"/{uploader.WebBasePath}/{fileName}");
         }
+
+        private string GetRandomFileName(string extension) =>
+            Path.ChangeExtension(Guid.NewGuid().ToString("N").Substring(0, 10), extension);
+    }
+
+    public class Model
+    {
+        public IFormFile File { get; set; }
+
+        public string ApiKey { get; set; }
     }
 }
