@@ -31,18 +31,19 @@ namespace ShareXAPI.Controllers
             {
                 return BadRequest("No file given");
             }
+
             var uploader =
                 _options.Uploader.FirstOrDefault(
                     s => s.WebBasePath.Equals(someName, StringComparison.OrdinalIgnoreCase));
             if (uploader == null)
             {
                 return NotFound();
-            }
+            } 
             if (uploader.ApiKey != apiKey && !string.IsNullOrEmpty(uploader.ApiKey))
             {
                 return new UnauthorizedResult();
             }
-
+            
             var fileExtension = Path.GetExtension(file.FileName).ToLower();
 
             if (!uploader.FileExtensions.Contains(fileExtension) && !uploader.FileExtensions.Contains("*") || file.Length > (1024 * 1024) * uploader.MaxFileSize)
@@ -55,6 +56,21 @@ namespace ShareXAPI.Controllers
 
             var fileName = GetRandomFileName(fileExtension);
             var filePath = Path.Combine(uploader.LocalBasePath, fileName);
+            var fileSize = file.Length;
+
+            if (uploader.MaxFolderSize > 0)
+            {
+                if (fileSize > uploader.MaxFolderSize*1024*1024)
+                {
+                    return BadRequest("File bigger than max foldersize");
+                }
+
+                while (GetDirectorySize(uploader.LocalBasePath) + fileSize > uploader.MaxFolderSize*1024*1024)
+                {
+                    DeleteOldestFile(uploader.LocalBasePath);
+                }
+            }
+            
             while (System.IO.File.Exists(filePath))
             {
                 fileName = GetRandomFileName(fileExtension);
@@ -71,7 +87,15 @@ namespace ShareXAPI.Controllers
 
         private string GetRandomFileName(string extension) =>
             Path.ChangeExtension(Guid.NewGuid().ToString("N").Substring(0, 10), extension);
+
+        private long GetDirectorySize(string directoryPath) => 
+            Directory.GetFiles(directoryPath, "*.*").Select(name => new FileInfo(name)).Select(currentFile => currentFile.Length).Sum();
+
+        private void DeleteOldestFile(string directoryPath) =>
+            System.IO.File.Delete(Path.Combine(directoryPath, Directory.GetFiles(directoryPath).Select(name => new FileInfo(name)).OrderBy(currentFile => currentFile.CreationTime).FirstOrDefault()?.Name));
     }
+
+    
 
     public class Model
     {

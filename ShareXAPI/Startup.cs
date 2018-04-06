@@ -42,12 +42,13 @@ namespace ShareXAPI
             {
                 foreach (var apiOption in apiOptions.Value.Uploader)
                 {
+                    Directory.CreateDirectory(apiOption.LocalBasePath);
                     app.UseStaticFiles(new StaticFileOptions
                     {
                         FileProvider = new PhysicalFileProvider(apiOption.LocalBasePath),
                         RequestPath = "/" + apiOption.WebBasePath
                     });
-                    Directory.CreateDirectory(apiOption.LocalBasePath);
+                    
                 }
             }
             catch (Exception e)
