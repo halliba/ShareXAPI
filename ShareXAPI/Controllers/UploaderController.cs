@@ -32,18 +32,23 @@ namespace ShareXAPI.Controllers
                 return BadRequest("No file given");
             }
 
-            var uploader =
-                _options.Uploader.FirstOrDefault(
+            var uploaders =
+                _options.Uploader.Where(
                     s => s.WebBasePath.Equals(someName, StringComparison.OrdinalIgnoreCase));
-            if (uploader == null)
+            if (uploaders == null)
             {
-                return NotFound();
+                return BadRequest(
+                    $"Uploader not Found - Wrong path?");
             } 
-            if (uploader.ApiKey != apiKey && !string.IsNullOrEmpty(uploader.ApiKey))
+            if (!uploaders.Any(s => s.ApiKey == apiKey && !string.IsNullOrEmpty(s.ApiKey)))
             {
                 return new UnauthorizedResult();
             }
-            
+
+            var uploader =
+                _options.Uploader.FirstOrDefault(
+                    s => s.WebBasePath.Equals(someName, StringComparison.OrdinalIgnoreCase) && s.ApiKey == apiKey);
+
             var fileExtension = Path.GetExtension(file.FileName).ToLower();
 
             if (!uploader.FileExtensions.Contains(fileExtension) && !uploader.FileExtensions.Contains("*") || file.Length > (1024 * 1024) * uploader.MaxFileSize)
