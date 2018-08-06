@@ -1,13 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Internal;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using ShareXAPI.Models;
 using ShareXAPI.Options;
 
 namespace ShareXAPI.Controllers
@@ -22,8 +18,8 @@ namespace ShareXAPI.Controllers
             _options = options.Value;
         }
 
-        [HttpPost("/{someName}")]
-        public IActionResult Post([FromRoute]string someName, [FromForm]Model model)
+        [HttpPost("/{uploadName}")]
+        public IActionResult Post([FromRoute]string uploadName, [FromForm]PostFileModel model)
         {
             var file = model.File;
             var apiKey = model.ApiKey;
@@ -34,7 +30,7 @@ namespace ShareXAPI.Controllers
 
             var uploaders =
                 _options.Uploader.Where(
-                    s => s.WebBasePath.Equals(someName, StringComparison.OrdinalIgnoreCase));
+                    s => s.WebBasePath.Equals(uploadName, StringComparison.OrdinalIgnoreCase));
             if (uploaders == null)
             {
                 return BadRequest(
@@ -47,7 +43,7 @@ namespace ShareXAPI.Controllers
 
             var uploader =
                 _options.Uploader.FirstOrDefault(
-                    s => s.WebBasePath.Equals(someName, StringComparison.OrdinalIgnoreCase) && s.ApiKey == apiKey);
+                    s => s.WebBasePath.Equals(uploadName, StringComparison.OrdinalIgnoreCase) && s.ApiKey == apiKey);
 
             var fileExtension = Path.GetExtension(file.FileName).ToLower();
 
@@ -93,19 +89,13 @@ namespace ShareXAPI.Controllers
         private string GetRandomFileName(string extension) =>
             Path.ChangeExtension(Guid.NewGuid().ToString("N").Substring(0, 10), extension);
 
-        private long GetDirectorySize(string directoryPath) => 
-            Directory.GetFiles(directoryPath, "*.*").Select(name => new FileInfo(name)).Select(currentFile => currentFile.Length).Sum();
+        private long GetDirectorySize(string directoryPath) =>
+            Directory.GetFiles(directoryPath, "*.*").Select(name => new FileInfo(name))
+                .Select(currentFile => currentFile.Length).Sum();
 
         private void DeleteOldestFile(string directoryPath) =>
-            System.IO.File.Delete(Path.Combine(directoryPath, Directory.GetFiles(directoryPath).Select(name => new FileInfo(name)).OrderBy(currentFile => currentFile.CreationTime).FirstOrDefault()?.Name));
-    }
-
-    
-
-    public class Model
-    {
-        public IFormFile File { get; set; }
-
-        public string ApiKey { get; set; }
+            System.IO.File.Delete(Path.Combine(directoryPath,
+                Directory.GetFiles(directoryPath).Select(name => new FileInfo(name))
+                    .OrderBy(currentFile => currentFile.CreationTime).FirstOrDefault()?.Name));
     }
 }
