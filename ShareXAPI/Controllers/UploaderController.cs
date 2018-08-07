@@ -83,8 +83,37 @@ namespace ShareXAPI.Controllers
             {
                 await file.CopyToAsync(fs);
             }
+            
+            if(uploader.ResponseType == ApiResponseType.Redirect)
+                return LocalRedirect($"/{uploader.WebBasePath}/{fileName}");
 
-            return LocalRedirect($"/{uploader.WebBasePath}/{fileName}");
+            return Ok(new ResultModel
+            {
+                FileUrl = ToAbsoluteUrl(Url.Content(uploader.WebBasePath + "/" + fileName)),
+                DeleteUrl = ToAbsoluteUrl(Url.Action("Delete", "Uploader", new {uploadName= uploader.WebBasePath, fileName}))
+            });
+        }
+
+        private string ToAbsoluteUrl(string relativeUrl)
+        {
+            return HttpContext.Request.Scheme + "://" + HttpContext.Request.Host + "/" + relativeUrl;
+        }
+
+        [HttpGet("/delete/{uploadName}/{fileName}")]
+        public IActionResult Delete([FromRoute]string uploadName, [FromRoute]string fileName)
+        {
+            var uploader =
+                _options.Uploader.FirstOrDefault(
+                    s => s.WebBasePath.Equals(uploadName, StringComparison.OrdinalIgnoreCase));
+            if (uploader == null)
+                return BadRequest();
+
+            var filePath = Path.Combine(uploader.LocalBasePath, fileName);
+            if (!System.IO.File.Exists(filePath))
+                return NotFound();
+
+            System.IO.File.Delete(filePath);
+            return Ok();
         }
 
         private static string GetRandomFileName(string extension) =>

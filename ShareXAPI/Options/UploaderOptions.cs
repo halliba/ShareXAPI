@@ -2,6 +2,7 @@
 {
     public class UploaderOptions
     {
+        public ApiResponseType ResponseType { get; set; } = ApiResponseType.Redirect;
         public string WebBasePath { get; set; }
         public string LocalBasePath { get; set; }
         public string[] FileExtensions { get; set; }
