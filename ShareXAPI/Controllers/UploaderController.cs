@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using ShareXAPI.Models;
@@ -9,17 +10,17 @@ using ShareXAPI.Options;
 namespace ShareXAPI.Controllers
 {
     
-    public class ImageController : Controller
+    public class UploaderController : Controller
     {
         private readonly ApiOptions _options;
 
-        public ImageController(IOptions<ApiOptions> options)
+        public UploaderController(IOptions<ApiOptions> options)
         {
             _options = options.Value;
         }
 
         [HttpPost("/{uploadName}")]
-        public IActionResult Post([FromRoute]string uploadName, [FromForm]PostFileModel model)
+        public async Task<IActionResult> Post([FromRoute]string uploadName, [FromForm]PostFileModel model)
         {
             var file = model.File;
             var apiKey = model.ApiKey;
@@ -80,20 +81,20 @@ namespace ShareXAPI.Controllers
 
             using (var fs = System.IO.File.Create(filePath))
             {
-                file.CopyTo(fs);
+                await file.CopyToAsync(fs);
             }
 
             return LocalRedirect($"/{uploader.WebBasePath}/{fileName}");
         }
 
-        private string GetRandomFileName(string extension) =>
+        private static string GetRandomFileName(string extension) =>
             Path.ChangeExtension(Guid.NewGuid().ToString("N").Substring(0, 10), extension);
 
-        private long GetDirectorySize(string directoryPath) =>
+        private static long GetDirectorySize(string directoryPath) =>
             Directory.GetFiles(directoryPath, "*.*").Select(name => new FileInfo(name))
                 .Select(currentFile => currentFile.Length).Sum();
 
-        private void DeleteOldestFile(string directoryPath) =>
+        private static void DeleteOldestFile(string directoryPath) =>
             System.IO.File.Delete(Path.Combine(directoryPath,
                 Directory.GetFiles(directoryPath).Select(name => new FileInfo(name))
                     .OrderBy(currentFile => currentFile.CreationTime).FirstOrDefault()?.Name));
