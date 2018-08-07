@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using ShareXAPI.Extensions;
 using ShareXAPI.Models;
 using ShareXAPI.Options;
 
@@ -96,7 +97,8 @@ namespace ShareXAPI.Controllers
 
         private string ToAbsoluteUrl(string relativeUrl)
         {
-            return HttpContext.Request.Scheme + "://" + HttpContext.Request.Host + "/" + relativeUrl;
+            var relativeUri = new Uri(relativeUrl, UriKind.Relative);
+            return relativeUri.ToAbsolute(HttpContext.Request.Scheme + "://" + HttpContext.Request.Host);
         }
 
         [HttpGet("/delete/{uploadName}/{fileName}")]
